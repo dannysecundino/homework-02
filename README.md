@@ -1,4 +1,4 @@
-# Homework 1: Estatística Descritiva
+# Homework 2: Temáticas do HW
 
 ## Descrição
 Trabalho de...
