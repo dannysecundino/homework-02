@@ -391,11 +391,106 @@ sd_bm <- sd(temp_bm)                   # should be close to sigma
 mean_r <- mean(temp_r)                 # should be close to mu
 sd_r <- sd(temp_r)                     # should be close to sigma
 
-# 3. (to be done)
+# 3. Determining the critical temperature and analyzing the datasets
 
-# 4. (to be done)
+# r = P(X >= E[X]) [E[X] = 18.25 is not an integer, so X >= E[X] is the same as X >= ceiling(E[X])]
+r_prob <- 1 - pbinom(ceiling(m) - 1, size = n, prob = p)
+r_prob_check <- sum(pmf[support >= m])          # checking with the PMF
 
-# X. Presenting our results
+# critical temperature: P(T > Tcrit) = r_prob, T ~ Normal(mu, sigma)
+Tcrit <- qnorm(1 - r_prob, mean = mu, sd = sigma)
+
+# theoretical probabilities
+prob_68_theo <- 1 - pnorm(68, mean = mu, sd = sigma)                             # P(T > 68)
+prob_6065_theo <- pnorm(65, mean = mu, sd = sigma) - pnorm(60, mean = mu, sd = sigma)   # P(60 < T < 65)
+prob_crit_theo <- 1 - pnorm(Tcrit, mean = mu, sd = sigma)                        # P(T > Tcrit), equal to r_prob
+
+# dataset 1 (Box-Muller)
+# a) and b) the sample mean and the sample standard deviation (mean_bm and sd_bm) were computed in item 2
+# c) minimum and maximum
+min_bm <- min(temp_bm)
+max_bm <- max(temp_bm)
+# d) empirical probabilities
+prob_68_bm <- mean(temp_bm > 68)                          # proportion of values greater than 68
+prob_6065_bm <- mean(temp_bm > 60 & temp_bm < 65)         # proportion of values between 60 and 65
+# e) empirical probability of T > Tcrit
+prob_crit_bm <- mean(temp_bm > Tcrit)
+diff_crit_bm <- prob_crit_bm - r_prob
+
+# dataset 2 (rnorm)
+# a) and b) the sample mean and the sample standard deviation (mean_r and sd_r) were computed in item 2
+# c) minimum and maximum
+min_r <- min(temp_r)
+max_r <- max(temp_r)
+# d) empirical probabilities
+prob_68_r <- mean(temp_r > 68)
+prob_6065_r <- mean(temp_r > 60 & temp_r < 65)
+# e) empirical probability of T > Tcrit
+prob_crit_r <- mean(temp_r > Tcrit)
+diff_crit_r <- prob_crit_r - r_prob
+
+# standard error of an empirical probability (to compare with the differences found)
+se_emp_crit <- sqrt(r_prob * (1 - r_prob) / nT)
+
+# 4. Histograms of the simulated CPU temperatures with the theoretical normal PDF
+
+# theoretical normal PDF evaluated over a grid (mu +- 4 sigma covers practically all the distribution)
+t_grid <- seq(mu - 4 * sigma, mu + 4 * sigma, length.out = 500)
+pdf_theo <- dnorm(t_grid, mean = mu, sd = sigma)
+
+# dataset 1 (Box-Muller)
+h_bm <- hist(temp_bm, breaks = 30, plot = FALSE)       # first make the histogram, without plotting it
+hist(temp_bm,                                          # plotting the histogram
+     breaks = 30,
+     freq = FALSE,
+     main = "CPU Temperatures (Box-Muller)\nHistogram and Theoretical Normal PDF",
+     xlab = "Temperature (°C)",
+     ylab = "Density",
+     col = "orange",
+     border = "black",
+     ylim = c(0, max(h_bm$density, pdf_theo) * 1.2))   # adds 20% clearance to the upper limit
+lines(t_grid, pdf_theo, col = "red", lwd = 2)          # theoretical PDF
+legend("topright",
+       legend = c("Simulated data", "Theoretical normal PDF"),
+       fill = c("orange", NA),
+       border = c("black", NA),
+       lty = c(NA, 1),
+       lwd = c(NA, 2),
+       col = c(NA, "red"))
+
+# dataset 2 (rnorm)
+h_r <- hist(temp_r, breaks = 30, plot = FALSE)
+hist(temp_r,
+     breaks = 30,
+     freq = FALSE,
+     main = "CPU Temperatures (rnorm)\nHistogram and Theoretical Normal PDF",
+     xlab = "Temperature (°C)",
+     ylab = "Density",
+     col = "steelblue",
+     border = "black",
+     ylim = c(0, max(h_r$density, pdf_theo) * 1.2))
+lines(t_grid, pdf_theo, col = "red", lwd = 2)
+legend("topright",
+       legend = c("Simulated data", "Theoretical normal PDF"),
+       fill = c("steelblue", NA),
+       border = c("black", NA),
+       lty = c(NA, 1),
+       lwd = c(NA, 2),
+       col = c(NA, "red"))
+
+# supporting values for the comments: proportion of values within 1, 2 and 3 standard deviations of the mean
+within1_theo <- pnorm(1) - pnorm(-1)                   # theoretical: 0.6827
+within2_theo <- pnorm(2) - pnorm(-2)                   # theoretical: 0.9545
+within3_theo <- pnorm(3) - pnorm(-3)                   # theoretical: 0.9973
+
+within_bm <- c(mean(abs(temp_bm - mu) < 1 * sigma),
+               mean(abs(temp_bm - mu) < 2 * sigma),
+               mean(abs(temp_bm - mu) < 3 * sigma))
+within_r <- c(mean(abs(temp_r - mu) < 1 * sigma),
+              mean(abs(temp_r - mu) < 2 * sigma),
+              mean(abs(temp_r - mu) < 3 * sigma))
+
+# 5. Presenting our results
 cat("=========================Third Question==========================\n")
 cat("0. Parameters of the question:\n")
 cat("   m = E[X] =", m, "\n")
@@ -423,4 +518,48 @@ cat("   Sample mean =", mean_r, " Sample standard deviation =", sd_r, "\n")
 cat("   [Theoretical values: mu =", mu, " sigma =", sigma, "]\n")
 cat("\n")
 
+cat("3. Critical temperature and analysis of the datasets:\n")
+cat("   r = P(X >= E[X]) = P(X >= ceiling(E[X])) =", r_prob, " [checking with the PMF:", r_prob_check, "]\n")
+cat("   (This is a stipulated reliability target, not an established relationship between workload and temperature.)\n")
+cat("   Critical temperature: Tcrit such that P(T > Tcrit) = r --> Tcrit =", Tcrit, "\n")
+cat("   Theoretical probabilities:\n")
+cat("       P(T > 68) =", prob_68_theo, "\n")
+cat("       P(60 < T < 65) =", prob_6065_theo, "\n")
+cat("       P(T > Tcrit) =", prob_crit_theo, "\n")
+cat("a) Dataset 1 (function box_muller):\n")
+cat("   i) Sample mean =", mean_bm, "\n")
+cat("   ii) Sample standard deviation =", sd_bm, "\n")
+cat("   iii) Minimum =", min_bm, " Maximum =", max_bm, "\n")
+cat("   iv) Empirical P(T > 68) =", prob_68_bm, " [theoretical:", prob_68_theo, "]\n")
+cat("       Empirical P(60 < T < 65) =", prob_6065_bm, " [theoretical:", prob_6065_theo, "]\n")
+cat("   v) Empirical P(T > Tcrit) =", prob_crit_bm, " [r =", r_prob, "] Difference =", diff_crit_bm, "\n")
+cat("b) Dataset 2 (built-in generator rnorm):\n")
+cat("   i) Sample mean =", mean_r, "\n")
+cat("   ii) Sample standard deviation =", sd_r, "\n")
+cat("   iii) Minimum =", min_r, " Maximum =", max_r, "\n")
+cat("   iv) Empirical P(T > 68) =", prob_68_r, " [theoretical:", prob_68_theo, "]\n")
+cat("       Empirical P(60 < T < 65) =", prob_6065_r, " [theoretical:", prob_6065_theo, "]\n")
+cat("   v) Empirical P(T > Tcrit) =", prob_crit_r, " [r =", r_prob, "] Difference =", diff_crit_r, "\n")
+cat("   Standard error of an empirical probability (for r and nT) =", se_emp_crit, "\n")
+cat("\n")
+
+cat("4. Histograms of the simulated CPU temperatures with the theoretical normal PDF:\n")
+cat("   One histogram for each dataset (density scale), overlaid with the PDF of Normal(mu, sigma).\n")
+cat("   Both are at the generated pdf Rplots.pdf\n")
+cat("   Proportion of values within 1, 2 and 3 standard deviations of the mean:\n")
+cat("       Theoretical:", within1_theo, within2_theo, within3_theo, "\n")
+cat("       Dataset 1 (box_muller):", within_bm, "\n")
+cat("       Dataset 2 (rnorm):", within_r, "\n")
+cat("   The comments are on the report.\n")
+cat("\n")
+
 cat("\n\n")
+
+# =========================
+# Fourth Question
+# =========================
+
+
+
+# X. Presenting our results
+cat("=========================Fourth Question==========================\n")

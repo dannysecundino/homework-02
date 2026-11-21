@@ -30,6 +30,7 @@
 \usepackage{xcolor}
 \usepackage{courier}
 \usepackage{mathpazo}
+\usepackage{float}
 
 % ===================== CÓDIGO R =====================
 \definecolor{codebg}{RGB}{245,245,250}
@@ -125,7 +126,7 @@
 
     {\large
     \textbf{HOMEWORK 02}\\[0.4cm]
-    TÍTULO DO TRABALHO
+    ANÁLISE PROBABILÍSTICA DE SISTEMAS COMPUTACIONAIS
     }
 
     \vfill
@@ -147,28 +148,226 @@
 
 \section{Questão 1}
 
-% Introdução e desenvolvimento da questão.
+Esta questão tem o objetivo de modelar o número de requisições que exigem processamento adicional em um lote de requisições de um serviço web, caracterizando a distribuição de probabilidade desse número, calculando suas medidas e algumas probabilidades de interesse e, por fim, estimando por máxima verossimilhança a probabilidade de uma requisição exigir processamento adicional. Diferentemente do Homework 01, não há um conjunto de dados externo: o modelo é definido pelo enunciado e pelo número de matrícula do grupo, e os dados da última parte da questão foram simulados em R. Todo o trabalho computacional foi feito com o R base, sem pacotes externos, utilizando as funções \texttt{dbinom}, \texttt{pbinom}, \texttt{rbinom} e \texttt{optimize}. Em cada ponto, o cálculo teórico foi desenvolvido primeiro e, em seguida, comparado com a saída do código R.
 
-\subsection{Ponto 1 -- Descrição}
+A probabilidade $p$ de uma requisição exigir processamento adicional depende do maior número de matrícula do grupo, $M = 579763$ (variável \texttt{M}):
+\[
+p = 0{,}05 + \frac{M \bmod 100}{200} = 0{,}05 + \frac{63}{200} = 0{,}05 + 0{,}315 \Rightarrow \boxed{p = 0{,}365}
+\]
+Logo, $1 - p = 0{,}635$. O tamanho do lote é $n = 50$ requisições, valor comum a todos os grupos.
 
-% Desenvolvimento.
+\subsection{Ponto 1 -- Distribuição de Probabilidade de $X$}
 
-\subsection{Ponto 2 -- Descrição}
+A variável $X$ conta quantas das $n = 50$ requisições do lote exigem processamento adicional. A distribuição binomial é a escolha adequada porque o experimento satisfaz as condições que a definem: o número de tentativas é fixo ($n = 50$); cada requisição tem apenas dois resultados possíveis (exige ou não processamento adicional); as requisições são independentes, conforme o enunciado; e a probabilidade de sucesso $p$ é a mesma para todas elas. Como $X$ é o número de sucessos nessas $n$ tentativas, tem-se
+\[
+X \sim \text{Bin}(n, p), \qquad \boxed{n = 50, \quad p = 0{,}365}
+\]
 
-% Desenvolvimento.
+A função de massa de probabilidade (PMF) é
+\[
+P(X = x) = \binom{n}{x}\, p^{x}\, (1-p)^{n-x} \Rightarrow 
+\]
 
-\subsection{Ponto 3 -- Descrição}
+\[
+\boxed{P(X = x) = \binom{50}{x}\, (0{,}365)^{x}\, (0{,}635)^{50-x}} \qquad x \in \{0, 1, 2, \dots, 50\}
+\]
+e $P(X = x) = 0$ fora desse conjunto. O suporte de $X$ é, portanto, $\{0, 1, \dots, 50\}$: de nenhuma requisição do lote exigindo processamento adicional até todas elas exigindo.
 
-% Desenvolvimento.
+Como verificação, a soma da PMF sobre todo o suporte deve ser igual a 1, o que decorre do teorema binomial, $\sum_{x=0}^{50} \binom{50}{x} p^x (1-p)^{50-x} = (p + (1-p))^{50} = 1$. O código R confirma esse resultado (variável \texttt{sum\_pmf} igual a 1).
 
-\subsection{Ponto 4 -- Descrição}
+\subsection{Ponto 2 -- Gráficos da PMF e da CDF}
 
-% Desenvolvimento.
+Como $X$ é uma variável aleatória discreta, cada função foi representada de forma adequada à sua natureza. A PMF foi desenhada com linhas verticais, já que a probabilidade está concentrada em valores inteiros isolados. A função de distribuição acumulada (CDF), $F(x) = P(X \le x)$, foi desenhada como uma função em escada, que permanece constante entre inteiros consecutivos e dá um salto de tamanho $P(X = x)$ em cada $x$ do suporte.
+\begin{figure}[!htb]
+\centering
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{imagens/pmf_x.png}
+    \caption{PMF de $X$}
+    \label{fig:q1-pmf}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{imagens/cdf_x.png}
+    \caption{CDF de $X$}
+    \label{fig:q1-cdf}
+\end{subfigure}
+\caption{PMF e CDF de $X \sim \text{Bin}(50;\, 0{,}365)$}
+\label{fig:q1-pmf-cdf}
+\end{figure}
 
-\subsection{Ponto 5 -- Descrição}
+A PMF (Figura~\ref{fig:q1-pmf-cdf}a) tem o formato de um sino com pico em $x = 18$, valor com probabilidade $P(X = 18) \approx 0{,}1166$, a maior de todo o suporte (esse valor é a moda da distribuição).
 
-% Desenvolvimento.
+A CDF (Figura~\ref{fig:q1-pmf-cdf}b) parte de valores próximos de zero, cresce com mais rapidez nos degraus da região central e se aproxima de 1 para $x$ acima de 30. Os valores $F(17) \approx 0{,}4179$ e $F(18) \approx 0{,}5345$ mostram que o ponto em que a CDF cruza 0,5 é $x = 18$, de modo que a mediana de $X$ coincide com a moda.
 
+\subsection{Ponto 3 -- Valor Esperado, Variância e Desvio Padrão}
+
+Como X é uma variável binomial, os seguintes resultados podem ser utilizados:
+\[
+E(X) = n\,p = 50 \cdot 0{,}365 = 18{,}25
+\]
+\[
+\text{Var}(X) = n\,p\,(1-p) = 50 \cdot 0{,}365 \cdot 0{,}635 = 18{,}25 \cdot 0{,}635 = 11{,}58875
+\]
+\[
+\text{DP}(X) = \sqrt{\text{Var}(X)} = \sqrt{11{,}58875} \approx 3{,}4042
+\]
+
+Os valores foram conferidos de duas formas no código R: pelas fórmulas fechadas da binomial (variáveis \texttt{ex}, \texttt{vx} e \texttt{sdx}) e pela definição, somando sobre o suporte $\sum_x x\,P(X = x)$ e $\sum_x (x - E(X))^2\,P(X = x)$ (variáveis \texttt{ex\_def}, \texttt{vx\_def} e \texttt{sdx\_def}). As duas formas coincidem com o cálculo teórico, como resume a Tabela~\ref{tab:q1-medidas}.
+
+\begin{table}[H]
+\centering
+\caption{Medidas de $X \sim \text{Bin}(50;\, 0{,}365)$}
+\label{tab:q1-medidas}
+\begin{tabular}{lccc}
+\hline
+\textbf{Medida} & \textbf{Fórmula} & \textbf{Cálculo teórico} & \textbf{Código R} \\
+\hline
+Valor esperado $E(X)$   & $n\,p$        & 18,25    & 18,25    \\
+Variância $\text{Var}(X)$ & $n\,p\,(1-p)$ & 11,58875 & 11,58875 \\
+Desvio padrão $\text{DP}(X)$ & $\sqrt{n\,p\,(1-p)}$ & 3,4042 & 3,404225 \\
+\hline
+\end{tabular}
+\end{table}
+
+Isso significa que, em média, cerca de 18 das 50 requisições de um lote exigem processamento adicional (36,5\% do lote, que é o próprio valor de $p$ em porcentagem), com variação típica de aproximadamente 3,4 requisições em torno desse valor.
+
+\subsection{Ponto 4 -- Probabilidades Pedidas}
+
+Como $X$ só assume valores inteiros, cada desigualdade foi reescrita em termos dos inteiros do suporte, e as probabilidades foram expressas pela PMF ou pela CDF, $F(x) = P(X \le x)$.
+
+\paragraph{(a) $P(X \ge 20)$.} Pelo complementar,
+\[
+P(X \ge 20) = 1 - P(X \le 19) = 1 - F(19) = 1 - \sum_{x=0}^{19} \binom{50}{x}(0{,}365)^{x}(0{,}635)^{50-x}
+\]
+A soma tem 20 termos e foi avaliada no R, resultando em $F(19) \approx 0{,}6473$ e, portanto, $P(X \ge 20) \approx 1 - 0{,}6473 = 0{,}3527$. O código confirma o valor por dois caminhos independentes, o complementar da CDF e a soma direta da PMF de 20 a 50 (variáveis \texttt{prob\_a} e \texttt{prob\_a\_check}), ambos com $0{,}3526533$. Esse resultado é coerente com o fato de 20 estar logo acima do valor esperado (18,25): em cerca de 35\% dos lotes, 20 ou mais requisições exigiriam processamento adicional.
+
+\paragraph{(b) $P(30 < X < 43)$.} Como $X$ é inteira, $30 < X < 43$ equivale a $31 \le X \le 42$, logo
+\[
+P(30 < X < 43) = \sum_{x=31}^{42} P(X = x)
+\]
+Os 12 termos podem ser obtidos à mão pela aplicação direta da pmf
+\[
+P(X = x) = \binom{n}{x}\, p^{x}\, (1-p)^{n-x}
+\]
+
+\begin{table}[H]
+\centering
+\caption{Termos da soma $P(31 \le X \le 42)$}
+\label{tab:q1-termos}
+\begin{tabular}{cc|cc}
+\hline
+$x$ & $P(X = x)$ & $x$ & $P(X = x)$ \\
+\hline
+31 & $1{,}468 \times 10^{-4}$ & 37 & $6{,}179 \times 10^{-8}$ \\
+32 & $5{,}010 \times 10^{-5}$ & 38 & $1{,}215 \times 10^{-8}$ \\
+33 & $1{,}571 \times 10^{-5}$ & 39 & $2{,}149 \times 10^{-9}$ \\
+34 & $4{,}515 \times 10^{-6}$ & 40 & $3{,}397 \times 10^{-10}$ \\
+35 & $1{,}186 \times 10^{-6}$ & 41 & $4{,}763 \times 10^{-11}$ \\
+36 & $2{,}841 \times 10^{-7}$ & 42 & $5{,}866 \times 10^{-12}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+A soma dos termos é $P(30 < X < 43) \approx 2{,}187 \times 10^{-4}$, que coincide com o valor do código R, $0{,}000218677$, obtido pela diferença $F(42) - F(30)$ e pela soma direta da PMF (variáveis \texttt{prob\_b} e \texttt{prob\_b\_check}, respectivamente). Observa-se que o primeiro termo responde por cerca de 67\% da soma e que os termos decaem rapidamente, o que é esperado em uma região tão distante do valor esperado: os valores de 31 a 42 situam-se entre 3,7 e 7,0 desvios padrão acima da média. A probabilidade é de aproximadamente 0,022\%.
+
+\paragraph{(c) $P(X = 31)$.} Aplicando a PMF diretamente,
+\[
+P(X = 31) = \binom{50}{31}(0{,}365)^{31}(0{,}635)^{19}
+\]
+Com $\binom{50}{31} = \binom{50}{19} = 30\,405\,943\,383\,200 \approx 3{,}0406 \times 10^{13}$ (por simetria do coeficiente binomial), $(0{,}365)^{31} \approx 2{,}6982 \times 10^{-14}$ e $(0{,}635)^{19} \approx 1{,}7894 \times 10^{-4}$, obtém-se
+\[
+P(X = 31) \approx 3{,}0406 \times 10^{13} \cdot 2{,}6982 \times 10^{-14} \cdot 1{,}7894 \times 10^{-4} \approx 0{,}8204 \cdot 1{,}7894 \times 10^{-4} \approx 1{,}468 \times 10^{-4}
+\]
+O resultado coincide com o do código R, $0{,}0001468041$ (variáveis \texttt{prob\_c} e \texttt{prob\_c\_check}). Trata-se de uma probabilidade de cerca de 0,015\%, pois 31 está aproximadamente 3,75 desvios padrão acima do valor esperado.
+
+A Tabela~\ref{tab:q1-prob} consolida os resultados deste ponto.
+
+\begin{table}[H]
+\centering
+\caption{Probabilidades calculadas para $X \sim \text{Bin}(50;\, 0{,}365)$}
+\label{tab:q1-prob}
+\begin{tabular}{lcc}
+\hline
+\textbf{Probabilidade} & \textbf{Expressão} & \textbf{Valor} \\
+\hline
+(a) $P(X \ge 20)$      & $1 - F(19)$       & 0,3527 \\
+(b) $P(30 < X < 43)$   & $F(42) - F(30)$   & $2{,}187 \times 10^{-4}$ \\
+(c) $P(X = 31)$        & PMF em $x = 31$   & $1{,}468 \times 10^{-4}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Ponto 5 -- Estimação de $p$ por Máxima Verossimilhança}
+
+Nesta parte, supõe-se que $p$ é desconhecido e que se deseja estimá-lo a partir de uma amostra de $n = 50$ requisições independentes, das quais $k$ exigiram processamento adicional. O modelo adotado continua sendo o binomial.
+
+\paragraph{(a) Função de verossimilhança.} A verossimilhança é a própria PMF do modelo, mas vista como função do parâmetro $p$, com o valor observado $k$ fixo:
+\[
+L(p \mid k) = \binom{50}{k}\, p^{k}\, (1-p)^{50-k}, \qquad 0 < p < 1
+\]
+Ela mede a plausibilidade de cada valor de $p$ à luz do que foi observado. Se a amostra for tratada como 50 observações de Bernoulli, $x_1, \dots, x_{50}$, com $k = \sum x_i$, a verossimilhança fica $p^{k}(1-p)^{50-k}$, sem o coeficiente binomial. Como esse coeficiente não depende de $p$, ele não altera o ponto de máximo, e o estimador obtido é o mesmo nos dois casos.
+
+\paragraph{(b) Log-verossimilhança e estimador de máxima verossimilhança.} Como o logaritmo é crescente, maximizar $L$ é equivalente a maximizar $\ell(p) = \ln L(p \mid k)$, que é mais simples de derivar porque transforma o produto em soma:
+\[
+\ell(p) = \ln\binom{50}{k} + k \ln p + (50 - k)\ln(1-p)
+\]
+Derivando em relação a $p$ e igualando a zero,
+\[
+\ell'(p) = \frac{k}{p} - \frac{50-k}{1-p} = 0 \;\Longrightarrow\; k(1-p) = (50-k)\,p \;\Longrightarrow\; k - kp = 50p - kp \;\Longrightarrow\; \boxed{\hat{p} = \frac{k}{50}}
+\]
+O termo $\ln\binom{50}{k}$ desaparece na derivada, por não depender de $p$. Para confirmar que o ponto crítico é um máximo, calcula-se a segunda derivada,
+\[
+\ell''(p) = -\frac{k}{p^{2}} - \frac{50-k}{(1-p)^{2}} < 0, \qquad 0 < p < 1 \;\; (0 < k < 50)
+\]
+que é negativa em todo o intervalo. O estimador de máxima verossimilhança é, portanto, a proporção amostral de requisições que exigiram processamento adicional.
+
+\paragraph{(c) Amostra simulada e estimativa.} Foi gerada uma amostra de 50 observações i.i.d. de Bernoulli com a probabilidade teórica $p = 0{,}365$, utilizando \texttt{rbinom(n, size = 1, prob = p)} (uma Bernoulli é uma binomial com uma única tentativa) e a semente fixa \texttt{set.seed(M)}, para que o resultado seja reproduzível. Na amostra gerada, observou-se
+\[
+k = 14 \quad \Longrightarrow \quad \hat{p} = \frac{k}{n} = \frac{14}{50} = 0{,}28
+\]
+A estimativa também foi obtida numericamente, maximizando a log-verossimilhança com a função \texttt{optimize} (variável \texttt{p\_hat\_num}), o que resultou em $0{,}2800024$. A pequena diferença de cerca de $2 \times 10^{-6}$ em relação a $0{,}28$ decorre da tolerância do otimizador, e o resultado confirma a dedução do item (b). A segunda derivada no ponto de máximo vale $\ell''(0{,}28) = -\frac{14}{0{,}28^2} - \frac{36}{0{,}72^2} \approx -178{,}57 - 69{,}44 = -248{,}02 < 0$, confirmando que se trata de um máximo.
+
+A Figura~\ref{fig:q1-lik} mostra a função de verossimilhança para $k = 14$. A curva tem um único pico em $\hat{p} = 0{,}28$, com valor $L(0{,}28 \mid 14) \approx 0{,}1248$. Já o valor teórico $p = 0{,}365$ tem verossimilhança $L(0{,}365 \mid 14) \approx 0{,}0555$, cerca de 44\% da máxima: os dados observados não descartam o valor teórico, mas são mais compatíveis com um valor menor.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.5\textwidth]{imagens/likelihood_p.png}
+\caption{Função de verossimilhança $L(p \mid k = 14)$, com a estimativa de máxima verossimilhança $\hat{p}$ e a probabilidade teórica $p$ marcadas}
+\label{fig:q1-lik}
+\end{figure}
+
+\paragraph{(d) Comparação com a probabilidade teórica.} A estimativa $\hat{p} = 0{,}28$ difere da probabilidade teórica $p = 0{,}365$ em $0{,}085$ (diferença absoluta), o que equivale a cerca de 23\% do valor teórico. Essa diferença é esperada em uma amostra finita por três razões.
+
+A primeira é que $\hat{p} = k/n$ é uma variável aleatória, pois $k$ muda de amostra para amostra mesmo com $p$ fixo. O estimador é não viesado, $E(\hat{p}) = E(k)/n = np/n = p$, ou seja, acerta $p$ em média, mas cada amostra individual flutua em torno dele, com variância e erro padrão dados por
+\[
+\text{Var}(\hat{p}) = \frac{n\,p\,(1-p)}{n^{2}} = \frac{p(1-p)}{n}, \qquad \text{EP}(\hat{p}) = \sqrt{\frac{p(1-p)}{n}} = \sqrt{\frac{0{,}365 \cdot 0{,}635}{50}} \approx 0{,}0681
+\]
+Assim, a diferença observada de $0{,}085$ corresponde a cerca de $0{,}085/0{,}0681 \approx 1{,}25$ erros padrão, uma distância comum de ocorrer por acaso. De fato, sob $p = 0{,}365$, a probabilidade de observar $k \le 14$ em 50 requisições é $P(X \le 14) \approx 0{,}1346$, de modo que obter 14 ou menos não é um evento raro.
+
+A segunda razão é que, com $n = 50$, $\hat{p}$ só pode assumir múltiplos de $1/50 = 0{,}02$, de modo que o valor exato $0{,}365$ nem sequer pode ser atingido; os valores mais próximos seriam $0{,}36$ e $0{,}38$.
+
+A terceira é a variabilidade amostral em si, que depende do tamanho da amostra, como mostra o erro padrão: ele é proporcional a $1/\sqrt{n}$, de modo que aumentar a amostra reduz a dispersão de $\hat{p}$ em torno de $p$. Para ilustrar esse efeito, o código gerou amostras de Bernoulli de tamanhos crescentes, com o mesmo $p$, e calculou $\hat{p}$ e o erro padrão teórico em cada caso (Tabela~\ref{tab:q1-tamanho}).
+
+\begin{table}[H]
+\centering
+\caption{Efeito do tamanho amostral sobre a estimativa de $p$ ($p = 0{,}365$)}
+\label{tab:q1-tamanho}
+\begin{tabular}{rcccc}
+\hline
+$n$ & $\hat{p}$ & $|\hat{p} - p|$ & $\text{EP}(\hat{p})$ & $|\hat{p} - p|/\text{EP}(\hat{p})$ \\
+\hline
+10     & 0,40000 & 0,03500 & 0,1522 & 0,23 \\
+50     & 0,38000 & 0,01500 & 0,0681 & 0,22 \\
+500    & 0,36200 & 0,00300 & 0,0215 & 0,14 \\
+5\,000  & 0,36940 & 0,00440 & 0,0068 & 0,65 \\
+50\,000 & 0,36846 & 0,00346 & 0,0022 & 1,61 \\
+\hline
+\end{tabular}
+\end{table}
+
+Duas observações são necessárias sobre a tabela. Primeiro, a linha $n = 50$ corresponde a uma nova amostra, gerada em sequência no código, e por isso é diferente da amostra com $k = 14$ usada nos itens anteriores. Segundo, o erro padrão cai de forma sistemática com o aumento de $n$ (a cada multiplicação do tamanho por 10, ele diminui por um fator de $\sqrt{10} \approx 3{,}16$, de $0{,}0681$ para $0{,}0215$, $0{,}0068$ e $0{,}0022$), mas o erro observado em cada amostra individual não diminui de forma estritamente monótona, pois cada amostra é um sorteio: o erro em $n = 5\,000$ ($0{,}0044$) é maior que em $n = 500$ ($0{,}0030$). O que se verifica é que todos os erros ficaram dentro de dois erros padrão. Esse comportamento ilustra a consistência do estimador, isto é, $\hat{p}$ se aproxima de $p$ à medida que o tamanho da amostra aumenta, conforme a Lei dos Grandes Números.
 \clearpage
 
 \section{Questão 2}
