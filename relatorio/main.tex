@@ -373,6 +373,15 @@ Duas observações são necessárias sobre a tabela. Primeiro, a linha $n = 50$ 
 \section{Questão 2}
 
 % Introdução e desenvolvimento da questão.
+Esta questão tem o objetivo de modelar o número diário de alertas críticos gerados pelo serviço web a partir dos resultados da Questão 1, aproximar a distribuição exata desse número por 
+uma distribuição de Poisson e avaliar a qualidade dessa aproximação, tanto de forma analítica quanto por simulação. Assim como na Questão 1, não há conjunto de dados externo: o modelo 
+é definido pelo enunciado em função de $m = E(X)$ e $c = \text{DP}(X)$, e os dados do último ponto foram simulados em R. Foi utilizado apenas o R base, com as funções \texttt{dbinom}, 
+\texttt{dpois}, \texttt{rbinom} e \texttt{barplot}. Em cada ponto, o cálculo teórico foi desenvolvido primeiro e, em seguida, comparado com a saída do código R.
+
+Os valores obtidos na Questão 1 são
+\[
+m = E(X) = 18{,}25, \qquad c = \text{DP}(X) = \sqrt{11{,}58875} \approx 3{,}4042
+\]
 
 \subsection{Ponto 1 -- Descrição}
 
