@@ -372,7 +372,6 @@ Duas observações são necessárias sobre a tabela. Primeiro, a linha $n = 50$ 
 
 \section{Questão 2}
 
-% Introdução e desenvolvimento da questão.
 Esta questão tem o objetivo de modelar o número diário de alertas críticos gerados pelo serviço web a partir dos resultados da Questão 1, aproximar a distribuição exata desse número por 
 uma distribuição de Poisson e avaliar a qualidade dessa aproximação, tanto de forma analítica quanto por simulação. Assim como na Questão 1, não há conjunto de dados externo: o modelo 
 é definido pelo enunciado em função de $m = E(X)$ e $c = \text{DP}(X)$, e os dados do último ponto foram simulados em R. Foi utilizado apenas o R base, com as funções \texttt{dbinom}, 
@@ -383,17 +382,143 @@ Os valores obtidos na Questão 1 são
 m = E(X) = 18{,}25, \qquad c = \text{DP}(X) = \sqrt{11{,}58875} \approx 3{,}4042
 \]
 
-\subsection{Ponto 1 -- Descrição}
+\subsection{Ponto 1 -- Cálculo de $N$ e $p_{\text{alerta}}$ e Aproximação de Poisson}
 
-% Desenvolvimento.
+O número de requisições por dia e a probabilidade de uma requisição gerar um alerta crítico são
+\[
+N = \text{round}(m \times 10^{6}) = \text{round}(18{,}25 \times 10^{6}) \Rightarrow \boxed{N = 18\,250\,000}
+\]
+\[
+p_{\text{alerta}} = \frac{c}{N} = \frac{3{,}4042}{18\,250\,000} \Rightarrow \boxed{p_{\text{alerta}} \approx 1{,}8653 \times 10^{-7}}
+\]
 
-\subsection{Ponto 2 -- Descrição}
+A variável $Y$ conta quantas das $N$ requisições do dia geram um alerta crítico. Como o número de tentativas é fixo, cada requisição tem dois resultados possíveis, as requisições são 
+independentes e a probabilidade $p_{\text{alerta}}$ é a mesma para todas, a distribuição exata de $Y$ é binomial:
+\[
+Y \sim \text{Bin}(N, p_{\text{alerta}}), \qquad P(Y = y) = \binom{N}{y}\, p_{\text{alerta}}^{\,y}\, (1 - p_{\text{alerta}})^{N-y}, \quad y \in \{0, 1, \dots, N\}
+\]
 
-% Desenvolvimento.
+Com $N$ muito grande e $p_{\text{alerta}}$ muito pequeno, o cálculo direto dessa PMF é inviável à mão, e a distribuição binomial pode ser aproximada por uma distribuição de Poisson 
+(lei dos eventos raros), cujo parâmetro é o valor esperado de $Y$:
+\[
+\lambda = N\,p_{\text{alerta}} = c \approx 3{,}4042 \qquad \Rightarrow \qquad Y \approx \text{Pois}(\lambda)
+\]
+A PMF da aproximação e o seu suporte são
+\[
+\boxed{P(Y = y) = \frac{e^{-\lambda}\,\lambda^{y}}{y!} = \frac{e^{-3{,}4042}\,(3{,}4042)^{y}}{y!}}, \qquad y \in \{0, 1, 2, \dots\}
+\]
 
-\subsection{Ponto 3 -- Descrição}
+\paragraph{Adequação da aproximação.} A aproximação é adequada quando $N$ é grande, $p_{\text{alerta}}$ é pequeno e $\lambda = N\,p_{\text{alerta}}$ é moderado. As três condições são 
+satisfeitas: $N = 1{,}825 \times 10^{7}$, $p_{\text{alerta}} \approx 1{,}87 \times 10^{-7}$ e $\lambda \approx 3{,}40$. A Tabela~\ref{tab:q2-pmf} compara as duas PMFs nos primeiros 
+valores do suporte, calculadas com \texttt{dbinom} e \texttt{dpois}.
 
-% Desenvolvimento.
+\begin{table}[H]
+\centering
+\caption{PMF exata (binomial) e aproximada (Poisson) de $Y$}
+\label{tab:q2-pmf}
+\begin{tabular}{cccc}
+\hline
+$y$ & \textbf{Binomial} & \textbf{Poisson} & \textbf{Diferença absoluta} \\
+\hline
+0 & 0,033232544 & 0,033232555 & $1{,}06 \times 10^{-8}$ \\
+1 & 0,113131090 & 0,113131105 & $1{,}48 \times 10^{-8}$ \\
+2 & 0,192561885 & 0,192561885 & $1{,}5 \times 10^{-10}$ \\
+3 & 0,218508032 & 0,218508015 & $1{,}70 \times 10^{-8}$ \\
+4 & 0,185962647 & 0,185962629 & $1{,}86 \times 10^{-8}$ \\
+5 & 0,126611746 & 0,126611738 & $8{,}5 \times 10^{-9}$ \\
+6 & 0,071835812 & 0,071835814 & $1{,}5 \times 10^{-9}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+Para $y = 0, \dots, 20$ (variável \texttt{max\_abs\_diff}), a maior diferença absoluta entre as duas PMFs é de apenas $1{,}86 \times 10^{-8}$, observada em $y = 4$, e a maior diferença 
+relativa é de cerca de $7 \times 10^{-6}$. Os resultados indicam que as duas distribuições são praticamente indistinguíveis neste caso, de modo que a Poisson, que depende de um único 
+parâmetro e é muito mais simples de calcular, representa bem o comportamento de $Y$. Uma diferença estrutural é que o suporte da Poisson é ilimitado, enquanto o da binomial termina em 
+$N$; contudo, a probabilidade atribuída a valores muito acima da média é desprezível nos dois modelos.
+
+\subsection{Ponto 2 -- Valor Esperado e Variância de $Y$}
+
+Para a distribuição exata, $Y \sim \text{Bin}(N, p_{\text{alerta}})$, e para a aproximação, $Y \approx \text{Pois}(\lambda)$, tem-se
+\[
+\text{Exata:} \quad E(Y) = N\,p_{\text{alerta}} = 3{,}404225316
+\]
+\[
+\text{Exata:} \quad \text{Var}(Y) = N\,p_{\text{alerta}}\,(1 - p_{\text{alerta}}) \approx 3{,}404224681
+\]
+\[
+\text{Poisson:} \quad E(Y) = \text{Var}(Y) = \lambda = 3{,}404225316
+\]
+
+Os valores foram conferidos no código R de duas formas: pelas fórmulas fechadas (variáveis \texttt{ey\_exact}, \texttt{vy\_exact}, \texttt{ey\_pois} e \texttt{vy\_pois}) e pela 
+definição, somando sobre $y = 0, \dots, 100$, já que a probabilidade além desse valor é desprezível (variáveis com sufixo \texttt{\_check}). As duas formas coincidem com o cálculo 
+teórico, como resume a Tabela~\ref{tab:q2-medidas}.
+
+\begin{table}[H]
+\centering
+\caption{Valor esperado e variância de $Y$: distribuição exata e aproximação de Poisson}
+\label{tab:q2-medidas}
+\begin{tabular}{lccc}
+\hline
+\textbf{Medida} & \textbf{Exata (binomial)} & \textbf{Poisson} & \textbf{Diferença} \\
+\hline
+$E(Y)$   & 3,404225316 & 3,404225316 & 0 \\
+$\text{Var}(Y)$ & 3,404224681 & 3,404225316 & $6{,}35 \times 10^{-7}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+Os valores esperados são idênticos, pois ambas as distribuições são parametrizadas de modo que $E(Y) = N\,p_{\text{alerta}}$. As variâncias diferem pelo fator $(1 - p_{\text{alerta}})$, 
+presente apenas na binomial: a diferença absoluta é $N\,p_{\text{alerta}}^{2} = c\,p_{\text{alerta}} \approx 6{,}35 \times 10^{-7}$ e a diferença relativa é igual a 
+$p_{\text{alerta}} \approx 1{,}87 \times 10^{-7}$ (variável \texttt{rel\_diff\_v}), isto é, cerca de $0{,}00002\%$. Como $p_{\text{alerta}}$ é muito pequeno, $1 - p_{\text{alerta}} \approx 1$, 
+e a binomial se comporta como uma Poisson, cuja variância é igual à média. Em termos práticos, o serviço gera em média cerca de 3,4 alertas críticos por dia, com variação típica de 
+aproximadamente $\sqrt{3{,}4042} \approx 1{,}85$ alertas em torno desse valor, e qualquer um dos dois modelos fornece essa conclusão.
+
+\subsection{Ponto 3 -- Simulação de 10.000 Dias de Operação}
+
+Foram simulados $10\,000$ dias de operação a partir da distribuição binomial exata, utilizando \texttt{rbinom(10000, size = N, prob = p\_alert)} com a semente fixa \texttt{set.seed(M)}, 
+para que o resultado seja reproduzível. Cada valor simulado é o número de alertas críticos de um dia. Os valores observados variaram de 0 a 15 alertas por dia. A Figura~\ref{fig:q2-sim} 
+compara as frequências relativas observadas com a PMF da Poisson.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{imagens/sim_poisson_q2.png}
+\caption{Frequências relativas do número diário de alertas em 10.000 dias simulados (barras) e PMF da distribuição de Poisson com $\lambda = 3{,}4042$ (pontos e linha)}
+\label{fig:q2-sim}
+\end{figure}
+
+O gráfico mostra que as frequências observadas acompanham de perto a PMF da Poisson: a distribuição é unimodal, com moda em $y = 3$ (frequência de 0,2194 contra 0,2185 teórico) e assimetria 
+à direita, e a cauda se extingue de forma semelhante nas duas representações.
+
+A qualidade da aproximação foi avaliada por três medidas, apresentadas na Tabela~\ref{tab:q2-qualidade}.
+
+\begin{table}[H]
+\centering
+\caption{Comparação entre a simulação (10.000 dias) e a distribuição de Poisson}
+\label{tab:q2-qualidade}
+\begin{tabular}{lcc}
+\hline
+\textbf{Medida} & \textbf{Simulação} & \textbf{Teórico ($\lambda = 3{,}4042$)} \\
+\hline
+Média amostral         & 3,4064 & 3,4042 \\
+Variância amostral     & 3,3996 & 3,4042 \\
+Maior diferença entre frequência e PMF & 0,0056 (em $y = 2$) & -- \\
+\hline
+\end{tabular}
+\end{table}
+
+A média e a variância amostrais ficaram muito próximas de $\lambda$, o que é coerente com a propriedade de a Poisson ter média igual à variância. O erro padrão da média amostral é 
+$\sqrt{\lambda/10\,000} \approx 0{,}0185$, de modo que a diferença de $0{,}0022$ equivale a cerca de $0{,}12$ erro padrão. A maior diferença entre uma frequência relativa e a PMF 
+correspondente foi de $0{,}0056$, em $y = 2$ (frequência de $0{,}1870$ contra $0{,}1926$). Para comparação, o erro padrão de uma frequência relativa no valor mais provável da distribuição 
+($P(Y = 3) \approx 0{,}2185$) é $\sqrt{0{,}2185\,(1 - 0{,}2185)/10\,000} \approx 0{,}0041$ (variável \texttt{se\_freq}), de modo que a maior diferença corresponde a cerca de $1{,}3$ erro 
+padrão, ou seja, é compatível com a variabilidade aleatória da simulação. Nas caudas, os valores $y = 14$ e $y = 15$ foram observados uma vez cada, embora suas probabilidades teóricas 
+sejam $1{,}07 \times 10^{-5}$ e $2{,}43 \times 10^{-6}$ (cerca de 0,11 e 0,02 dia esperado em 10.000 dias); trata-se de eventos raros cuja ocorrência isolada gera diferenças da ordem de 
+$10^{-4}$, sem relevância prática.
+
+Os resultados indicam que a aproximação de Poisson descreve bem o número diário de alertas. É importante observar, entretanto, o alcance dessa conclusão: a diferença entre a binomial 
+exata e a Poisson (no máximo $1{,}86 \times 10^{-8}$ por valor, conforme o Ponto 1) é cerca de cinco ordens de grandeza menor que o ruído de uma simulação de 10.000 dias 
+($\approx 4 \times 10^{-3}$). Assim, a simulação não consegue distinguir as duas distribuições, e seria necessária uma amostra da ordem de $10^{14}$ dias para que o erro padrão se tornasse 
+comparável àquela diferença. A simulação confirma, portanto, a coerência do modelo com a Poisson, enquanto a qualidade da aproximação em si é estabelecida pela comparação analítica das PMFs 
+e dos momentos (Pontos 1 e 2).
 \clearpage
 
 \section{Questão 3}
