@@ -523,23 +523,155 @@ e dos momentos (Pontos 1 e 2).
 
 \section{Questão 3}
 
-% Introdução e desenvolvimento da questão.
+Esta questão tem o objetivo de modelar a temperatura da CPU sob condições normais de operação como uma variável aleatória contínua normalmente distribuída, implementar em R um gerador de valores normais a partir da transformação de Box-Muller, compará-lo ao gerador nativo da linguagem, determinar uma temperatura crítica associada aos resultados da Questão~1 e avaliar, numérica e visualmente, o ajuste dos dados simulados à distribuição teórica. Assim como nas questões anteriores, não há conjunto de dados externo: o modelo é especificado pelo enunciado, com média $\mu = 62\,^\circ\text{C}$ e desvio padrão $\sigma = 3{,}5\,^\circ\text{C}$, isto é, $T \sim N(62;\; 3{,}5^{2})$, e os dois conjuntos de temperaturas são simulados em R com tamanho determinado pelo valor esperado $m = E(X)$ obtido na Questão~1. Todo o processamento foi realizado apenas com o R base, sem pacotes externos, utilizando as funções \texttt{runif}, \texttt{rnorm}, \texttt{pbinom}, \texttt{qnorm}, \texttt{pnorm}, \texttt{dnorm}, \texttt{hist} e \texttt{set.seed}. Em cada ponto, os resultados teóricos são estabelecidos primeiro e, em seguida, comparados aos valores obtidos computacionalmente.
 
-\subsection{Ponto 1 -- Descrição}
+\subsection{Ponto 1 -- Implementação da Transformação de Box-Muller}
 
-% Desenvolvimento.
+O número de temperaturas da CPU a simular, $n_T$, depende do valor esperado $m = E(X) = 18{,}25$ calculado na Questão~1:
+\[
+n_T = \text{round}(100\,m) = \text{round}(100 \cdot 18{,}25) \;\Longrightarrow\; \boxed{n_T = 1\,825}
+\]
 
-\subsection{Ponto 2 -- Descrição}
+A transformação de Box-Muller permite gerar variáveis aleatórias normais padrão independentes a partir de variáveis uniformes independentes em $(0, 1)$, explorando a representação em coordenadas polares de um par $(Z_1, Z_2)$ normal bivariado padrão (em que o raio ao quadrado $R^{2} = Z_1^{2} + Z_2^{2}$ segue distribuição exponencial de taxa $1/2$ e o ângulo $\Theta$ é uniforme em $[0, 2\pi)$). O procedimento implementado na função \texttt{box\_muller(n, mu = 0, sigma = 1)} executa as três etapas especificadas:
+\begin{enumerate}[label=(\alph*)]
+    \item \textbf{Geração de uniformes independentes:} geram-se pares $U_1, U_2 \sim \text{Unif}(0, 1)$ independentes por meio da função \texttt{runif}. No R, \texttt{runif} não retorna exatamente $0$ nem $1$, de modo que $\ln(U_1)$ é sempre finito e bem definido.
+    \item \textbf{Cálculo das variáveis normais padrão:} para cada par $(U_1, U_2)$, calculam-se duas variáveis aleatórias independentes com distribuição $N(0, 1)$:
+    \[
+    Z_1 = \sqrt{-2 \ln(U_1)}\,\cos(2\pi U_2), \qquad Z_2 = \sqrt{-2 \ln(U_1)}\,\sin(2\pi U_2)
+    \]
+    Como cada par produz dois valores normais padrão, para obter $n_T = 1\,825$ observações são necessários $\lceil n_T / 2 \rceil = \lceil 1\,825 / 2 \rceil = 913$ pares, resultando em $2 \times 913 = 1\,826$ valores. Os vetores \texttt{z1} e \texttt{z2} são concatenados em um único vetor \texttt{z} e truncados ao comprimento exato \texttt{z[1:n]}, descartando o único valor excedente.
+    \item \textbf{Conversão para temperaturas da CPU:} por fim, aplica-se a transformação linear de locação e escala
+    \[
+    \boxed{T = \mu + \sigma Z = 62 + 3{,}5\,Z}
+    \]
+    Como $Z \sim N(0, 1)$, segue das propriedades da distribuição normal que $E(T) = 62 + 3{,}5\,E(Z) = 62\,^\circ\text{C}$ e $\text{Var}(T) = 3{,}5^{2}\,\text{Var}(Z) = 12{,}25\,^\circ\text{C}^{2}$, isto é, $T \sim N(62;\; 3{,}5^{2})$. Com os argumentos padrão \texttt{mu = 0} e \texttt{sigma = 1}, a função devolve valores normais padrão; quando chamada com \texttt{mu = 62} e \texttt{sigma = 3.5}, devolve diretamente as temperaturas simuladas.
+\end{enumerate}
 
-% Desenvolvimento.
+\subsection{Ponto 2 -- Geração dos Conjuntos de Dados Simulados}
 
-\subsection{Ponto 3 -- Descrição}
+Para garantir a reprodutibilidade dos experimentos e, ao mesmo tempo, preservar a independência estatística entre as duas amostras, definiu-se uma única semente aleatória fixa antes da geração de ambos os conjuntos (\texttt{set.seed(M)}, com $M = 579763$), gerando os dois vetores sequencialmente:
+\begin{itemize}
+    \item \textbf{Conjunto 1 (\texttt{temp\_bm}):} $n_T = 1\,825$ temperaturas geradas pela função \texttt{box\_muller}, invocada com \texttt{mu = 62} e \texttt{sigma = 3.5};
+    \item \textbf{Conjunto 2 (\texttt{temp\_r}):} $n_T = 1\,825$ temperaturas geradas imediatamente em seguida pela função nativa \texttt{rnorm} do R, com os mesmos parâmetros (que, por padrão, emprega o método da inversão sobre o gerador Mersenne-Twister).
+\end{itemize}
 
-% Desenvolvimento.
+Por consumirem trechos disjuntos da mesma sequência pseudoaleatória, os dois conjuntos são amostras independentes de $N(62;\; 3{,}5^{2})$. Como verificação inicial no código, confirmou-se que ambos possuem comprimento exato igual a $1\,825$ (variáveis \texttt{len\_bm} e \texttt{len\_r}), com médias amostrais de $61{,}9283\,^\circ\text{C}$ (Box-Muller) e $62{,}0000\,^\circ\text{C}$ (\texttt{rnorm}) e desvios padrão amostrais de $3{,}5269\,^\circ\text{C}$ e $3{,}5549\,^\circ\text{C}$, valores próximos aos parâmetros teóricos $\mu = 62\,^\circ\text{C}$ e $\sigma = 3{,}5\,^\circ\text{C}$.
 
-\subsection{Ponto 4 -- Descrição}
+\subsection{Ponto 3 -- Temperatura Crítica $T_{\text{crit}}$ e Análise dos Conjuntos Simulados}
 
-% Desenvolvimento.
+\paragraph{Cálculo teórico de $r$ e de $T_{\text{crit}}$.} Na Questão~1, $X \sim \text{Bin}(50;\; 0{,}365)$ tem valor esperado $m = E(X) = 18{,}25$. Como $X$ assume apenas valores inteiros, o evento $X \ge 18{,}25$ equivale a $X \ge 19$, logo
+\[
+r = P(X \ge E(X)) = P(X \ge 19) = 1 - P(X \le 18) = 1 - F(18)
+\]
+Utilizando $F(18) \approx 0{,}534495$ (já observado na análise da CDF da Questão~1), obtém-se
+\[
+\boxed{r \approx 1 - 0{,}534495 = 0{,}465505}
+\]
+O código R confirma esse valor por dois caminhos equivalentes: o complementar da CDF (\texttt{r\_prob}) e a soma direta da PMF sobre o suporte com $x \ge m$ (\texttt{r\_prob\_check}), ambos iguais a $0{,}4655050$. Conforme observado no enunciado, $r$ é adotado apenas como uma meta de confiabilidade estipulada para o exercício, não implicando uma relação empírica entre a carga de trabalho e a temperatura da CPU.
+
+Deseja-se determinar a temperatura crítica $T_{\text{crit}}$ tal que $P(T > T_{\text{crit}}) = r$, com $T \sim N(62;\; 3{,}5^{2})$. Reescrevendo em termos da função de distribuição acumulada da normal padrão $\Phi(\cdot)$,
+\[
+P(T > T_{\text{crit}}) = r \;\Longleftrightarrow\; P(T \le T_{\text{crit}}) = 1 - r \;\Longleftrightarrow\; \Phi\!\left(\frac{T_{\text{crit}} - 62}{3{,}5}\right) = 1 - r \approx 0{,}534495
+\]
+Invertendo $\Phi$ para obter o quantil padrão $z_{\text{crit}} = \Phi^{-1}(0{,}534495) \approx 0{,}086574$, segue que
+\[
+T_{\text{crit}} = \mu + \sigma\,z_{\text{crit}} = 62 + 3{,}5 \cdot 0{,}086574 \;\Longrightarrow\; \boxed{T_{\text{crit}} \approx 62{,}3030\,^\circ\text{C}}
+\]
+O código R obtém o mesmo resultado via \texttt{qnorm(1 - r\_prob, mean = mu, sd = sigma)}, com \texttt{Tcrit} $= 62{,}30301\,^\circ\text{C}$. Como $r \approx 46{,}55\%$ é ligeiramente inferior a $50\%$, é coerente que $T_{\text{crit}}$ situe-se pouco acima da média e mediana da distribuição ($0{,}3030\,^\circ\text{C}$, ou $0{,}087$ desvio padrão acima de $62\,^\circ\text{C}$).
+
+\paragraph{Cálculo teórico de $P(T > 68)$ e $P(60 < T < 65)$.} Padronizando $T$ por meio de $Z = (T - 62)/3{,}5 \sim N(0, 1)$, obtêm-se as probabilidades teóricas:
+\[
+P(T > 68) = P\!\left(Z > \frac{68 - 62}{3{,}5}\right) = 1 - \Phi\!\left(\frac{12}{7}\right) \approx 1 - \Phi(1{,}7143) \approx 1 - 0{,}95676 = \boxed{0{,}04324}
+\]
+\[
+P(60 < T < 65) = P\!\left(\frac{60 - 62}{3{,}5} < Z < \frac{65 - 62}{3{,}5}\right) = \Phi\!\left(\frac{6}{7}\right) - \Phi\!\left(-\frac{4}{7}\right)
+\]
+\[
+P(60 < T < 65) \approx \Phi(0{,}8571) - \Phi(-0{,}5714) \approx 0{,}80432 - 0{,}28386 = \boxed{0{,}52046}
+\]
+No R, as variáveis \texttt{prob\_68\_theo} ($0{,}043238$) e \texttt{prob\_6065\_theo} ($0{,}520462$) confirmam exatamente esses resultados, assim como \texttt{prob\_crit\_theo} $= 1 - \texttt{pnorm(Tcrit, 62, 3.5)} = 0{,}465505 = r$. Assim, sob o modelo normal, temperaturas acima de $68\,^\circ\text{C}$ são pouco frequentes (cerca de $4{,}32\%$ do tempo), enquanto mais da metade das leituras (cerca de $52{,}05\%$) concentra-se na faixa moderada entre $60\,^\circ\text{C}$ e $65\,^\circ\text{C}$.
+
+\paragraph{Comparação entre os conjuntos simulados e o modelo teórico.} A Tabela~\ref{tab:q3-resumo} consolida os itens (a) a (e) para ambos os conjuntos simulados de tamanho $n_T = 1\,825$, em comparação direta com os respectivos valores teóricos.
+
+\begin{table}[H]
+\centering
+\caption{Estatísticas amostrais e probabilidades empíricas dos conjuntos simulados ($n_T = 1\,825$) em comparação ao modelo teórico $T \sim N(62;\; 3{,}5^{2})$}
+\label{tab:q3-resumo}
+\begin{tabular}{lccc}
+\hline
+\textbf{Medida} & \textbf{Teórico} & \textbf{Box-Muller (\texttt{temp\_bm})} & \textbf{\texttt{rnorm} (\texttt{temp\_r})} \\
+\hline
+(a) Média ($^\circ\text{C}$)                & 62,0000 & 61,9283 & 62,0000 \\
+(b) Desvio padrão ($^\circ\text{C}$)        & 3,5000  & 3,5269  & 3,5549  \\
+(c) Mínimo ($^\circ\text{C}$)               & --      & 51,1054 & 49,0722 \\
+(c) Máximo ($^\circ\text{C}$)               & --      & 72,9878 & 78,0344 \\
+(d) $P(T > 68)$                             & 0,0432  & 0,0422  & 0,0416  \\
+(d) $P(60 < T < 65)$                        & 0,5205  & 0,5140  & 0,5222  \\
+(e) $P(T > T_{\text{crit}})$                & 0,4655  & 0,4559  & 0,4701  \\
+Diferença $P_{\text{emp}}(T > T_{\text{crit}}) - r$ & 0 & $-0{,}0096$ & $+0{,}0046$ \\
+\hline
+\end{tabular}
+\end{table}
+
+Analisando cada aspecto dos resultados obtidos:
+\begin{itemize}
+    \item \textbf{Média e desvio padrão amostrais — itens (a) e (b):} o erro padrão teórico da média amostral é $\text{EP}(\bar{T}) = \sigma / \sqrt{n_T} = 3{,}5 / \sqrt{1\,825} \approx 0{,}0819\,^\circ\text{C}$. O desvio observado na amostra de Box-Muller ($-0{,}0717\,^\circ\text{C}$) equivale a $-0{,}87$ erro padrão, enquanto na amostra de \texttt{rnorm} a média ficou em $61{,}99996\,^\circ\text{C}$, praticamente coincidente com $\mu$. Para o desvio padrão amostral, cujo erro padrão aproximado é $\sigma / \sqrt{2(n_T - 1)} \approx 0{,}0579\,^\circ\text{C}$, as diferenças de $+0{,}0269\,^\circ\text{C}$ (Box-Muller, $+0{,}46$ erro padrão) e $+0{,}0549\,^\circ\text{C}$ (\texttt{rnorm}, $+0{,}95$ erro padrão) também são pequenas e totalmente compatíveis com a variabilidade amostral esperada.
+    \item \textbf{Valores mínimo e máximo — item (c):} no conjunto de Box-Muller, os extremos ($51{,}11\,^\circ\text{C}$ e $72{,}99\,^\circ\text{C}$) posicionam-se de forma quase simétrica em torno da média, a $-3{,}11\,\sigma$ e $+3{,}14\,\sigma$ (amplitude de $21{,}88\,^\circ\text{C}$). No conjunto gerado por \texttt{rnorm}, observaram-se extremos mais distantes, em $49{,}07\,^\circ\text{C}$ ($-3{,}69\,\sigma$) e $78{,}03\,^\circ\text{C}$ ($+4{,}58\,\sigma$, amplitude de $28{,}96\,^\circ\text{C}$). Embora um valor acima de $78\,^\circ\text{C}$ seja bastante raro sob $N(62;\; 3{,}5^{2})$ ($P(T > 78{,}03) \approx 2{,}3 \times 10^{-6}$), eventos extremos isolados nas caudas podem ocorrer em simulações com quase dois mil sorteios sem caracterizar desvio do modelo, sendo essa maior sensibilidade aos extremos uma característica natural das estatísticas de ordem mínimo e máximo.
+    \item \textbf{Probabilidades empíricas e teóricas — item (d):} em $n_T = 1\,825$ observações, a proporção empírica de $T > 68$ foi de $77/1\,825 \approx 0{,}0422$ (Box-Muller) e $76/1\,825 \approx 0{,}0416$ (\texttt{rnorm}), frente ao valor teórico de $0{,}0432$ (diferenças de $-0{,}0010$ e $-0{,}0016$, ambas abaixo de $0{,}35$ erro padrão, sendo $\text{EP} = \sqrt{0{,}04324 \cdot 0{,}95676 / 1\,825} \approx 0{,}0048$). Para o intervalo $60 < T < 65$, observaram-se $938/1\,825 \approx 0{,}5140$ (Box-Muller) e $953/1\,825 \approx 0{,}5222$ (\texttt{rnorm}), contra $0{,}5205$ teórico (diferenças de $-0{,}0065$ e $+0{,}0017$, correspondendo a $-0{,}55$ e $+0{,}15$ erro padrão, pois $\text{EP} \approx 0{,}0117$).
+    \item \textbf{Probabilidade empírica de $T > T_{\text{crit}}$ e comparação com $r$ — item (e):} observaram-se $832$ ocorrências acima de $T_{\text{crit}}$ no conjunto de Box-Muller ($0{,}4559$, diferença de $-0{,}0096$ em relação a $r = 0{,}4655$) e $858$ ocorrências no conjunto de \texttt{rnorm} ($0{,}4701$, diferença de $+0{,}0046$). Como o indicador $\mathbf{1}(T > T_{\text{crit}})$ segue distribuição de Bernoulli com parâmetro $r$, o erro padrão teórico da proporção empírica é
+    \[
+    \text{EP}(\hat{r}) = \sqrt{\frac{r(1 - r)}{n_T}} = \sqrt{\frac{0{,}465505 \cdot 0{,}534495}{1\,825}} \approx 0{,}0117
+    \]
+    (variável \texttt{se\_emp\_crit}). Assim, os desvios observados correspondem a $-0{,}82$ erro padrão (Box-Muller) e $+0{,}40$ erro padrão (\texttt{rnorm}), ambos dentro de um único erro padrão. Os resultados indicam concordância estatística entre as probabilidades empíricas dos dois geradores e a meta teórica $r$.
+\end{itemize}
+
+\subsection{Ponto 4 -- Histogramas das Temperaturas Simuladas e PDF Normal Teórica}
+
+A Figura~\ref{fig:q3-hist} apresenta os histogramas em escala de densidade (\texttt{freq = FALSE}, com \texttt{breaks = 30}) dos dois conjuntos simulados, sobrepostos à função densidade de probabilidade (PDF) teórica de $T \sim N(62;\; 3{,}5^{2})$:
+\[
+f(t) = \frac{1}{\sigma\sqrt{2\pi}}\,\exp\!\left(-\frac{(t - \mu)^{2}}{2\sigma^{2}}\right) = \frac{1}{3{,}5\sqrt{2\pi}}\,\exp\!\left(-\frac{(t - 62)^{2}}{24{,}5}\right), \qquad t \in \mathbb{R}
+\]
+cujo valor máximo ocorre em $t = \mu = 62\,^\circ\text{C}$, com densidade de pico $f(62) = (3{,}5\sqrt{2\pi})^{-1} \approx 0{,}1140$.
+
+\begin{figure}[!htb]
+\centering
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{imagens/hist_bm_q3.png}
+    \caption{Simulação por Box-Muller (\texttt{temp\_bm})}
+    \label{fig:q3-hist-bm}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{imagens/hist_rnorm_q3.png}
+    \caption{Simulação por \texttt{rnorm} (\texttt{temp\_r})}
+    \label{fig:q3-hist-rnorm}
+\end{subfigure}
+\caption{Histogramas em escala de densidade das $n_T = 1\,825$ temperaturas simuladas da CPU, sobrepostos à PDF teórica da distribuição $N(62;\; 3{,}5^{2})$}
+\label{fig:q3-hist}
+\end{figure}
+
+Visualmente, ambos os histogramas exibem o formato unimodal e simétrico em sino característico da distribuição normal, centrados em torno de $62\,^\circ\text{C}$ e acompanhando de perto a curva vermelha da densidade teórica tanto na região central quanto nas caudas. No histograma gerado por Box-Muller (Figura~\ref{fig:q3-hist}a), a barra mais alta ocorre no intervalo $[60;\; 61]\,^\circ\text{C}$ (densidade $\approx 0{,}1238$, ligeiramente acima do pico teórico de $0{,}1140$), acompanhada de pequena depressão em $[61;\; 62]\,^\circ\text{C}$ — flutuações pontuais típicas de uma amostra finita particionada em classes de $1\,^\circ\text{C}$. No histograma gerado por \texttt{rnorm} (Figura~\ref{fig:q3-hist}b), o pico localiza-se em $[62;\; 63]\,^\circ\text{C}$ (densidade $\approx 0{,}1189$) e a aderência visual na região central é muito próxima da curva teórica; na cauda direita, notam-se duas barras isoladas de altura mínima em $[76;\; 77]\,^\circ\text{C}$ e $[78;\; 79]\,^\circ\text{C}$, correspondentes às duas observações extremas da amostra ($76{,}76\,^\circ\text{C}$ e $78{,}03\,^\circ\text{C}$), que ampliam o eixo horizontal sem comprometer a distribuição global.
+
+Para complementar a inspeção visual, a Tabela~\ref{tab:q3-regra} compara as proporções empíricas de observações dentro de 1, 2 e 3 desvios padrão em torno da média teórica $\mu = 62\,^\circ\text{C}$ (variáveis \texttt{within\_bm} e \texttt{within\_r}) com a regra empírica da distribuição normal.
+
+\begin{table}[H]
+\centering
+\caption{Proporção de temperaturas simuladas dentro de 1, 2 e 3 desvios padrão da média teórica ($\mu = 62\,^\circ\text{C}$, $\sigma = 3{,}5\,^\circ\text{C}$)}
+\label{tab:q3-regra}
+\begin{tabular}{lccc}
+\hline
+\textbf{Intervalo} & \textbf{Teórico} & \textbf{Box-Muller} & \textbf{\texttt{rnorm}} \\
+\hline
+$\mu \pm 1\sigma = [58{,}5;\; 65{,}5]\,^\circ\text{C}$ & 0,6827 (68,27\%) & 0,6816 (68,16\%) & 0,6707 (67,07\%) \\
+$\mu \pm 2\sigma = [55{,}0;\; 69{,}0]\,^\circ\text{C}$ & 0,9545 (95,45\%) & 0,9463 (94,63\%) & 0,9529 (95,29\%) \\
+$\mu \pm 3\sigma = [51{,}5;\; 72{,}5]\,^\circ\text{C}$ & 0,9973 (99,73\%) & 0,9984 (99,84\%) & 0,9984 (99,84\%) \\
+\hline
+\end{tabular}
+\end{table}
+
+Em ambos os conjuntos, as proporções empíricas reproduzem fielmente os referenciais teóricos de $68{,}27\%$, $95{,}45\%$ e $99{,}73\%$, com diferenças inferiores a $1{,}2$ ponto percentual em todos os intervalos. Em conjunto com os resultados da Tabela~\ref{tab:q3-resumo} e dos histogramas da Figura~\ref{fig:q3-hist}, conclui-se que a implementação própria da transformação de Box-Muller produz amostras estatística e visualmente equivalentes às do gerador nativo \texttt{rnorm}, representando adequadamente a distribuição normal $N(62;\; 3{,}5^{2})$ adotada para a temperatura da CPU.
 
 \clearpage
 
